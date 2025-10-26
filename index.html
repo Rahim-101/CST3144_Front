@@ -13,6 +13,7 @@
     <button @click="showCart = !showCart">Cart ({{ cartCount }})</button>
   </header>
 
+  <!-- Lessons -->
   <main v-if="!showCart">
     <section>
       <article v-for="l in lessons" :key="l.id">
@@ -26,6 +27,7 @@
     </section>
   </main>
 
+  <!-- Cart + checkout -->
   <main v-else>
     <h2>Your Cart</h2>
     <p v-if="cart.length === 0">Cart is empty.</p>
@@ -38,6 +40,17 @@
       </li>
     </ul>
     <p v-if="cart.length"><strong>Total: £ {{ cartTotal }}</strong></p>
+
+    <form @submit.prevent="submitOrder">
+      <h3>Checkout</h3>
+      <label>Name <input v-model="name" placeholder="Letters and spaces only" /></label>
+      <div v-if="name && !nameOk" style="color:#b00000">Please use letters/spaces only.</div>
+
+      <label>Phone <input v-model="phone" inputmode="numeric" placeholder="Digits only" /></label>
+      <div v-if="phone && !phoneOk" style="color:#b00000">Digits only (0-9).</div>
+
+      <button :disabled="!canCheckout" type="submit">Submit order</button>
+    </form>
   </main>
 </div>
 
@@ -58,11 +71,16 @@ new Vue({
       { id: 10, subject:'Music', location:'Mill Hill', price:88, spaces:5 },
     ],
     cart: [],
-    showCart: false
+    showCart: false,
+    name: '',
+    phone: ''
   },
   computed: {
     cartCount() { return this.cart.reduce((s, i) => s + i.qty, 0); },
-    cartTotal() { return this.cart.reduce((s, i) => s + i.qty * i.price, 0); }
+    cartTotal() { return this.cart.reduce((s, i) => s + i.qty * i.price, 0); },
+    nameOk() { return /^[A-Za-z\s]+$/.test(this.name.trim()); },
+    phoneOk() { return /^\d+$/.test(this.phone.trim()); },
+    canCheckout() { return this.nameOk && this.phoneOk && this.cart.length > 0; }
   },
   methods: {
     addToCart(lesson) {
@@ -90,6 +108,11 @@ new Vue({
         const i = this.cart.findIndex(x => x.id === lessonId);
         if (i > -1) this.cart.splice(i, 1);
       }
+    },
+    submitOrder() {
+      if (!this.canCheckout) return;
+      alert(`Order submitted!\nName: ${this.name}\nPhone: ${this.phone}\nItems: ${this.cartCount}`);
+      this.name = ''; this.phone = ''; this.cart.splice(0);
     }
   }
 });
