@@ -13,7 +13,6 @@
     <button @click="showCart = !showCart">Cart ({{ cartCount }})</button>
   </header>
 
-  <!-- Lessons -->
   <main v-if="!showCart">
     <section>
       <article v-for="l in lessons" :key="l.id">
@@ -27,15 +26,18 @@
     </section>
   </main>
 
-  <!-- Cart ( -->
   <main v-else>
     <h2>Your Cart</h2>
     <p v-if="cart.length === 0">Cart is empty.</p>
     <ul v-else>
       <li v-for="item in cart" :key="item.id">
-        {{ item.subject }} — Qty: {{ item.qty }} — £ {{ item.price }}
+        <strong>{{ item.subject }}</strong>
+        — Qty: {{ item.qty }} — £ {{ item.price }}
+        <button @click="decrement(item.id)">-1</button>
+        <button @click="removeFromCart(item.id)">Remove</button>
       </li>
     </ul>
+    <p v-if="cart.length"><strong>Total: £ {{ cartTotal }}</strong></p>
   </main>
 </div>
 
@@ -59,9 +61,8 @@ new Vue({
     showCart: false
   },
   computed: {
-    cartCount() {
-      return this.cart.reduce((s, i) => s + i.qty, 0);
-    }
+    cartCount() { return this.cart.reduce((s, i) => s + i.qty, 0); },
+    cartTotal() { return this.cart.reduce((s, i) => s + i.qty * i.price, 0); }
   },
   methods: {
     addToCart(lesson) {
@@ -70,6 +71,25 @@ new Vue({
       const found = this.cart.find(i => i.id === lesson.id);
       if (found) found.qty += 1;
       else this.cart.push({ id: lesson.id, subject: lesson.subject, price: lesson.price, qty: 1 });
+    },
+    removeFromCart(lessonId) {
+      const idx = this.cart.findIndex(i => i.id === lessonId);
+      if (idx === -1) return;
+      const item = this.cart[idx];
+      const lesson = this.lessons.find(l => l.id === lessonId);
+      if (lesson) lesson.spaces += item.qty;
+      this.cart.splice(idx, 1);
+    },
+    decrement(lessonId) {
+      const item = this.cart.find(i => i.id === lessonId);
+      if (!item) return;
+      item.qty -= 1;
+      const lesson = this.lessons.find(l => l.id === lessonId);
+      if (lesson) lesson.spaces += 1;
+      if (item.qty <= 0) {
+        const i = this.cart.findIndex(x => x.id === lessonId);
+        if (i > -1) this.cart.splice(i, 1);
+      }
     }
   }
 });
