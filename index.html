@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Lesson Shop (Vue-only)</title>
+  <title>Lesson Shop </title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://unpkg.com/vue@2.7.8/dist/vue.js"></script>
 </head>
@@ -15,8 +15,9 @@
       <article v-for="l in lessons" :key="l.id">
         <h3>{{ l.subject }}</h3>
         <p>Location: {{ l.location }}</p>
-        <p>Price: AED {{ l.price }}</p>
+        <p>Price: £ {{ l.price }}</p>
         <p>Spaces: {{ l.spaces }}</p>
+        <button :disabled="l.spaces <= 0" @click="addToCart(l)">Add to cart</button>
         <hr />
       </article>
     </section>
@@ -38,7 +39,17 @@ new Vue({
       { id: 8,  subject:'CS',        location:'Brent Cross',   price:130, spaces:5 },
       { id: 9,  subject:'Art',       location:'Golders Green', price:80,  spaces:5 },
       { id: 10, subject:'Music',     location:'Mill Hill',     price:88,  spaces:5 },
-    ]
+    ],
+    cart: [] // {id, subject, price, qty}
+  },
+  methods: {
+    addToCart(lesson) {
+      if (lesson.spaces <= 0) return;
+      lesson.spaces -= 1;
+      const found = this.cart.find(i => i.id === lesson.id);
+      if (found) found.qty += 1;
+      else this.cart.push({ id: lesson.id, subject: lesson.subject, price: lesson.price, qty: 1 });
+    }
   }
 });
 </script>
