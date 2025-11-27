@@ -15,8 +15,55 @@
 
   <!-- Lessons -->
   <main v-if="!showCart">
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px;">
+      <h3>Search Lessons</h3>
+      <input 
+        type="text" 
+        v-model="searchQuery" 
+        placeholder="Search by subject, location, price, or availability..."
+        style="width: 100%; padding: 8px; font-size: 16px;">
+      <p v-if="searchQuery" style="margin-top: 5px; color: #666;">
+        Found {{ filteredLessons.length }} result(s) for "{{ searchQuery }}"
+      </p>
+    </div>
+    <hr />
+
+    <!-- Sort Controls -->
+    <div style="margin-bottom: 20px;">
+      <h3>Sort Lessons</h3>
+      <div style="margin-bottom: 10px;">
+        <strong>Sort by:</strong>
+        <label style="margin-left: 10px;">
+          <input type="radio" v-model="sortBy" value="subject"> Subject
+        </label>
+        <label style="margin-left: 10px;">
+          <input type="radio" v-model="sortBy" value="location"> Location
+        </label>
+        <label style="margin-left: 10px;">
+          <input type="radio" v-model="sortBy" value="price"> Price
+        </label>
+        <label style="margin-left: 10px;">
+          <input type="radio" v-model="sortBy" value="spaces"> Availability
+        </label>
+      </div>
+      <div>
+        <strong>Order:</strong>
+        <label style="margin-left: 10px;">
+          <input type="radio" v-model="sortOrder" value="asc"> Ascending
+        </label>
+        <label style="margin-left: 10px;">
+          <input type="radio" v-model="sortOrder" value="desc"> Descending
+        </label>
+      </div>
+    </div>
+    <hr />
+
     <section>
-      <article v-for="l in lessons" :key="l.id">
+      <p v-if="displayedLessons.length === 0" style="color: red; font-weight: bold;">
+        No lessons found matching "{{ searchQuery }}"
+      </p>
+      <article v-for="l in displayedLessons" :key="l.id">
         <h3>{{ l.subject }}</h3>
         <p>Location: {{ l.location }}</p>
         <p>Price: £ {{ l.price }}</p>
@@ -73,14 +120,61 @@ new Vue({
     cart: [],
     showCart: false,
     name: '',
-    phone: ''
+    phone: '',
+    searchQuery: '',
+    sortBy: 'subject',
+    sortOrder: 'asc'
   },
   computed: {
     cartCount() { return this.cart.reduce((s, i) => s + i.qty, 0); },
     cartTotal() { return this.cart.reduce((s, i) => s + i.qty * i.price, 0); },
     nameOk() { return /^[A-Za-z\s]+$/.test(this.name.trim()); },
     phoneOk() { return /^\d+$/.test(this.phone.trim()); },
-    canCheckout() { return this.nameOk && this.phoneOk && this.cart.length > 0; }
+    canCheckout() { return this.nameOk && this.phoneOk && this.cart.length > 0; },
+    
+    // Search functionality - filters lessons based on search query (SEARCH AS YOU TYPE)
+    filteredLessons() {
+      if (!this.searchQuery.trim()) {
+        return this.lessons;
+      }
+      
+      const query = this.searchQuery.toLowerCase().trim();
+      
+      return this.lessons.filter(lesson => {
+        // Search in subject
+        if (lesson.subject.toLowerCase().includes(query)) return true;
+        // Search in location
+        if (lesson.location.toLowerCase().includes(query)) return true;
+        // Search in price (convert to string)
+        if (lesson.price.toString().includes(query)) return true;
+        // Search in spaces (convert to string)
+        if (lesson.spaces.toString().includes(query)) return true;
+        
+        return false;
+      });
+    },
+    
+    // Sort filtered lessons
+    displayedLessons() {
+      const sorted = [...this.filteredLessons].sort((a, b) => {
+        let aVal = a[this.sortBy];
+        let bVal = b[this.sortBy];
+        
+        // Handle string comparison (case-insensitive)
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+        
+        if (this.sortOrder === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+      
+      return sorted;
+    }
   },
   methods: {
     addToCart(lesson) {
