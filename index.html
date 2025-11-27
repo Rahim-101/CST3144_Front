@@ -4,148 +4,163 @@
   <meta charset="utf-8" />
   <title>Lesson Shop</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
   <script src="https://unpkg.com/vue@2.7.8/dist/vue.js"></script>
 </head>
 <body>
 <div id="app">
   <header>
     <h1>Lesson Shop</h1>
-    <button @click="showCart = !showCart">Cart ({{ cartCount }})</button>
+    <button @click="showCart = !showCart" :disabled="cartCount === 0">Cart ({{ cartCount }})</button>
   </header>
 
   <!-- Lessons -->
   <main v-if="!showCart">
     <!-- Search Bar -->
-    <div style="margin-bottom: 20px;">
+    <div class="search-container">
       <h3>Search Lessons</h3>
       <input 
         type="text" 
+        class="search-input"
         v-model="searchQuery" 
-        placeholder="Search by subject, location, price, or availability..."
-        style="width: 100%; padding: 8px; font-size: 16px;">
-      <p v-if="searchQuery" style="margin-top: 5px; color: #666;">
+        placeholder="Search by subject, location, price, or availability...">
+      <p class="search-results-info" v-if="searchQuery">
         Found {{ filteredLessons.length }} result(s) for "{{ searchQuery }}"
       </p>
     </div>
-    <hr />
 
     <!-- Sort Controls -->
-    <div style="margin-bottom: 20px;">
+    <div class="sort-controls">
       <h3>Sort Lessons</h3>
-      <div style="margin-bottom: 10px;">
-        <strong>Sort by:</strong>
-        <label style="margin-left: 10px;">
-          <input type="radio" v-model="sortBy" value="subject"> Subject
-        </label>
-        <label style="margin-left: 10px;">
-          <input type="radio" v-model="sortBy" value="location"> Location
-        </label>
-        <label style="margin-left: 10px;">
-          <input type="radio" v-model="sortBy" value="price"> Price
-        </label>
-        <label style="margin-left: 10px;">
-          <input type="radio" v-model="sortBy" value="spaces"> Availability
-        </label>
-      </div>
-      <div>
-        <strong>Order:</strong>
-        <label style="margin-left: 10px;">
-          <input type="radio" v-model="sortOrder" value="asc"> Ascending
-        </label>
-        <label style="margin-left: 10px;">
-          <input type="radio" v-model="sortOrder" value="desc"> Descending
-        </label>
+      <div class="sort-group">
+        <div class="sort-section">
+          <strong>Sort by:</strong>
+          <label>
+            <input type="radio" v-model="sortBy" value="subject"> Subject
+          </label>
+          <label>
+            <input type="radio" v-model="sortBy" value="location"> Location
+          </label>
+          <label>
+            <input type="radio" v-model="sortBy" value="price"> Price
+          </label>
+          <label>
+            <input type="radio" v-model="sortBy" value="spaces"> Availability
+          </label>
+        </div>
+        
+        <div class="sort-section">
+          <strong>Order:</strong>
+          <label>
+            <input type="radio" v-model="sortOrder" value="asc"> ⬆ Ascending
+          </label>
+          <label>
+            <input type="radio" v-model="sortOrder" value="desc"> ⬇ Descending
+          </label>
+        </div>
       </div>
     </div>
-    <hr />
 
-    <section>
-      <p v-if="displayedLessons.length === 0" style="color: red; font-weight: bold;">
-        No lessons found matching "{{ searchQuery }}"
-      </p>
-      <article v-for="l in displayedLessons" :key="l.id">
-        <h3>{{ l.subject }}</h3>
-        <p>Location: {{ l.location }}</p>
-        <p>Price: £ {{ l.price }}</p>
-        <p>Spaces: {{ l.spaces }}</p>
-        <button :disabled="l.spaces <= 0" @click="addToCart(l)">Add to cart</button>
-        <hr />
-      </article>
-    </section>
+    <!-- No Results Message -->
+    <div class="no-results" v-if="displayedLessons.length === 0">
+      <p>No lessons found matching "{{ searchQuery }}"</p>
+      <p style="font-size: 0.95rem; color: #a0aec0; margin-top: 0.5rem;">Try a different search term</p>
+    </div>
+
+    <!-- Lessons Grid -->
+    <div class="lesson-grid" v-if="displayedLessons.length > 0">
+      <div class="lesson-card" v-for="l in displayedLessons" :key="l.id">
+        <div class="lesson-image">
+          <img :src="getSubjectIcon(l.subject)" :alt="l.subject" />
+        </div>
+        <div class="lesson-content">
+          <h3>{{ l.subject }}</h3>
+          <p><strong>Location:</strong> {{ l.location }}</p>
+          <p><strong>Price:</strong> £{{ l.price }}</p>
+          <p><strong>Spaces:</strong> {{ l.spaces }}</p>
+          <button :disabled="l.spaces <= 0" @click="addToCart(l)">
+            {{ l.spaces > 0 ? 'Add to cart' : 'Sold Out' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Cart + checkout -->
   <main v-else>
-    <h2>Your Cart</h2>
-    <p v-if="cart.length === 0">Cart is empty.</p>
-    <ul v-else>
-      <li v-for="item in cart" :key="item.id">
-        <strong>{{ item.subject }}</strong>
-        — Qty: {{ item.qty }} — £ {{ item.price }}
-        <button @click="decrement(item.id)">-1</button>
-        <button @click="removeFromCart(item.id)">Remove</button>
-      </li>
-    </ul>
-    <p v-if="cart.length"><strong>Total: £ {{ cartTotal }}</strong></p>
+    <div class="cart-section">
+      <h2>Your Cart</h2>
+      <p class="empty-cart" v-if="cart.length === 0">Your cart is empty.</p>
+      <ul class="cart-items" v-else>
+        <li class="cart-item" v-for="item in cart" :key="item.id">
+          <div class="cart-item-info">
+            <strong>{{ item.subject }}</strong>
+            <span>Qty: {{ item.qty }} × £{{ item.price }} = £{{ item.qty * item.price }}</span>
+          </div>
+          <div class="cart-item-actions">
+            <button class="decrement-btn" @click="decrement(item.id)">-1</button>
+            <button class="remove-btn" @click="removeFromCart(item.id)">Remove</button>
+          </div>
+        </li>
+      </ul>
+      <p class="cart-total" v-if="cart.length">Total: £{{ cartTotal }}</p>
 
-    <form @submit.prevent="submitOrder">
+    <form @submit.prevent="submitOrder" class="checkout-form" v-if="cart.length">
       <h3>Checkout</h3>
       
       <div>
         <label>First Name *</label>
-        <input v-model="firstName" placeholder="John" style="width: 100%; padding: 5px;" />
-        <div v-if="firstName && !firstNameOk" style="color:#b00000">Letters only.</div>
+        <input type="text" v-model="firstName" placeholder="John" />
+        <div v-if="firstName && !firstNameOk" class="error-message">Letters only.</div>
       </div>
       
       <div>
         <label>Last Name *</label>
-        <input v-model="lastName" placeholder="Doe" style="width: 100%; padding: 5px;" />
-        <div v-if="lastName && !lastNameOk" style="color:#b00000">Letters only.</div>
+        <input type="text" v-model="lastName" placeholder="Doe" />
+        <div v-if="lastName && !lastNameOk" class="error-message">Letters only.</div>
       </div>
       
       <div>
         <label>Email *</label>
-        <input v-model="email" type="email" placeholder="john.doe@example.com" style="width: 100%; padding: 5px;" />
-        <div v-if="email && !emailOk" style="color:#b00000">Valid email required.</div>
+        <input v-model="email" type="email" placeholder="john.doe@example.com" />
+        <div v-if="email && !emailOk" class="error-message">Valid email required.</div>
       </div>
       
       <div>
         <label>Phone *</label>
-        <input v-model="phone" inputmode="numeric" placeholder="1234567890" style="width: 100%; padding: 5px;" />
-        <div v-if="phone && !phoneOk" style="color:#b00000">Digits only (0-9).</div>
+        <input type="tel" v-model="phone" inputmode="numeric" placeholder="1234567890" />
+        <div v-if="phone && !phoneOk" class="error-message">Digits only (0-9).</div>
       </div>
       
       <div>
         <label>City *</label>
-        <input v-model="city" placeholder="London" style="width: 100%; padding: 5px;" />
-        <div v-if="city && !cityOk" style="color:#b00000">Letters and spaces only.</div>
+        <input type="text" v-model="city" placeholder="London" />
+        <div v-if="city && !cityOk" class="error-message">Letters and spaces only.</div>
       </div>
       
       <div>
         <label>Country *</label>
-        <select v-model="country" style="width: 100%; padding: 5px;">
+        <select v-model="country">
           <option value="">-- Select a country --</option>
           <option v-for="c in countries" :key="c" :value="c">{{ c }}</option>
         </select>
-        <div v-if="country === '' && formTouched" style="color:#b00000">Please select a country.</div>
+        <div v-if="country === '' && formTouched" class="error-message">Please select a country.</div>
       </div>
       
       <div>
         <label>Address *</label>
-        <input v-model="address" placeholder="123 Main Street, Apt 4B" style="width: 100%; padding: 5px;" />
-        <div v-if="address && !addressOk" style="color:#b00000">Address must be at least 5 characters.</div>
+        <input type="text" v-model="address" placeholder="123 Main Street, Apt 4B" />
+        <div v-if="address && !addressOk" class="error-message">Address must be at least 5 characters.</div>
       </div>
       
-      <div style="margin: 15px 0;">
+      <div class="checkbox-group">
+        <input type="checkbox" id="isGift" v-model="isGift" />
+        <label for="isGift">Is this a gift?</label>
+      </div>
+      
+      <div class="radio-group">
+        <strong>Lesson Type: *</strong>
         <label>
-          <input type="checkbox" v-model="isGift" />
-          Is this a gift?
-        </label>
-      </div>
-      
-      <div style="margin: 15px 0;">
-        <strong>Lesson Type: *</strong><br/>
-        <label style="margin-right: 15px;">
           <input type="radio" v-model="lessonType" value="in-person" />
           In Person
         </label>
@@ -155,10 +170,11 @@
         </label>
       </div>
 
-      <button :disabled="!canCheckout" type="submit" style="padding: 10px 20px; margin-top: 10px;">
+      <button class="submit-btn" :disabled="!canCheckout" type="submit">
         {{ canCheckout ? 'Submit order' : 'Please fill all required fields' }}
       </button>
     </form>
+    </div>
   </main>
 </div>
 
@@ -304,6 +320,22 @@ new Vue({
         const i = this.cart.findIndex(x => x.id === lessonId);
         if (i > -1) this.cart.splice(i, 1);
       }
+    },
+    // Get image for each subject
+    getSubjectIcon(subject) {
+      const images = {
+        'Math': '/images/math.png',
+        'Physics': '/images/physics.png',
+        'Chemistry': '/images/chemistry.png',
+        'Biology': '/images/biology.png',
+        'English': '/images/english.png',
+        'History': '/images/history.png',
+        'Geography': '/images/geography.png',
+        'CS': '/images/cs.png',
+        'Art': '/images/art.png',
+        'Music': '/images/music.png'
+      };
+      return images[subject] || '/images/default.png';
     },
     submitOrder() {
       if (!this.canCheckout) return;
