@@ -195,10 +195,9 @@ main {
 }
 
 .lesson-image img {
-  width: 80px;
-  height: 80px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  opacity: 0.85;
 }
 
 .lesson-content {

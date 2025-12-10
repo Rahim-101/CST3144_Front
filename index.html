@@ -11,7 +11,7 @@
 <div id="app">
   <header>
     <h1>Lesson Shop</h1>
-    <button @click="showCart = !showCart" :disabled="cartCount === 0">Cart ({{ cartCount }})</button>
+    <button @click="toggleCart" :disabled="cartCount === 0 && !hasVisitedCart">Cart ({{ cartCount }})</button>
   </header>
 
   <!-- Lessons -->
@@ -91,18 +91,19 @@
     <div class="cart-section">
       <h2>Your Cart</h2>
       <p class="empty-cart" v-if="cart.length === 0">Your cart is empty.</p>
-      <ul class="cart-items" v-else>
-        <li class="cart-item" v-for="item in cart" :key="item.id">
-          <div class="cart-item-info">
-            <strong>{{ item.subject }}</strong>
-            <span>Qty: {{ item.qty }} × £{{ item.price }} = £{{ item.qty * item.price }}</span>
-          </div>
-          <div class="cart-item-actions">
-            <button class="decrement-btn" @click="decrement(item.id)">-1</button>
-            <button class="remove-btn" @click="removeFromCart(item.id)">Remove</button>
-          </div>
-        </li>
-      </ul>
+        <ul class="cart-items" v-else>
+          <li class="cart-item" v-for="item in cart" :key="item.id">
+            <img :src="getSubjectIcon(item.subject)" :alt="item.subject" class="cart-item-image" />
+            <div class="cart-item-info">
+              <strong>{{ item.subject }}</strong>
+              <span>Qty: {{ item.qty }} × £{{ item.price }} = £{{ item.qty * item.price }}</span>
+            </div>
+            <div class="cart-item-actions">
+              <button class="decrement-btn" @click="decrement(item.id)">-1</button>
+              <button class="remove-btn" @click="removeFromCart(item.id)">Remove</button>
+            </div>
+          </li>
+        </ul>
       <p class="cart-total" v-if="cart.length">Total: £{{ cartTotal }}</p>
 
     <form @submit.prevent="submitOrder" class="checkout-form" v-if="cart.length">
@@ -182,20 +183,10 @@
 new Vue({
   el: '#app',
   data: {
-    lessons: [
-      { id: 1, subject:'Math', location:'Hendon', price:100, spaces:5 },
-      { id: 2, subject:'Physics', location:'Colindale', price:120, spaces:5 },
-      { id: 3, subject:'Chemistry', location:'Brent Cross', price:110, spaces:5 },
-      { id: 4, subject:'Biology', location:'Golders Green', price:105, spaces:5 },
-      { id: 5, subject:'English', location:'Mill Hill', price:90, spaces:5 },
-      { id: 6, subject:'History', location:'Hendon', price:95, spaces:5 },
-      { id: 7, subject:'Geography', location:'Colindale', price:85, spaces:5 },
-      { id: 8, subject:'CS', location:'Brent Cross', price:130, spaces:5 },
-      { id: 9, subject:'Art', location:'Golders Green', price:80, spaces:5 },
-      { id: 10, subject:'Music', location:'Mill Hill', price:88, spaces:5 },
-    ],
+    lessons: [],  // Changed: will load from backend
     cart: [],
     showCart: false,
+    hasVisitedCart: false,
     firstName: '',
     lastName: '',
     email: '',
@@ -227,11 +218,16 @@ new Vue({
       'Brazil'
     ]
   },
+  
+  // NEW: Load lessons when page loads
+  mounted() {
+    this.fetchLessons();
+  },
+  
   computed: {
     cartCount() { return this.cart.reduce((s, i) => s + i.qty, 0); },
     cartTotal() { return this.cart.reduce((s, i) => s + i.qty * i.price, 0); },
     
-    // Form validation
     firstNameOk() { return /^[A-Za-z]+$/.test(this.firstName.trim()); },
     lastNameOk() { return /^[A-Za-z]+$/.test(this.lastName.trim()); },
     emailOk() { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim()); },
@@ -240,61 +236,60 @@ new Vue({
     addressOk() { return this.address.trim().length >= 5; },
     
     canCheckout() { 
-      return this.firstNameOk && 
-             this.lastNameOk && 
-             this.emailOk && 
-             this.phoneOk && 
-             this.cityOk && 
-             this.country !== '' &&
-             this.addressOk &&
-             this.cart.length > 0; 
+      return this.firstNameOk && this.lastNameOk && this.emailOk && 
+             this.phoneOk && this.cityOk && this.country !== '' &&
+             this.addressOk && this.cart.length > 0; 
     },
     
-    // Search functionality - filters lessons based on search query (SEARCH AS YOU TYPE)
     filteredLessons() {
-      if (!this.searchQuery.trim()) {
-        return this.lessons;
-      }
+      if (!this.searchQuery.trim()) return this.lessons;
       
       const query = this.searchQuery.toLowerCase().trim();
-      
       return this.lessons.filter(lesson => {
-        // Search in subject
-        if (lesson.subject.toLowerCase().includes(query)) return true;
-        // Search in location
-        if (lesson.location.toLowerCase().includes(query)) return true;
-        // Search in price (convert to string)
-        if (lesson.price.toString().includes(query)) return true;
-        // Search in spaces (convert to string)
-        if (lesson.spaces.toString().includes(query)) return true;
-        
-        return false;
+        return lesson.subject.toLowerCase().includes(query) ||
+               lesson.location.toLowerCase().includes(query) ||
+               lesson.price.toString().includes(query) ||
+               lesson.spaces.toString().includes(query);
       });
     },
     
-    // Sort filtered lessons
     displayedLessons() {
       const sorted = [...this.filteredLessons].sort((a, b) => {
         let aVal = a[this.sortBy];
         let bVal = b[this.sortBy];
         
-        // Handle string comparison (case-insensitive)
         if (typeof aVal === 'string') {
           aVal = aVal.toLowerCase();
           bVal = bVal.toLowerCase();
         }
         
-        if (this.sortOrder === 'asc') {
-          return aVal > bVal ? 1 : -1;
-        } else {
-          return aVal < bVal ? 1 : -1;
-        }
+        return this.sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
       });
       
       return sorted;
     }
   },
+  
   methods: {
+    // NEW: Fetch lessons from backend
+    async fetchLessons() {
+      try {
+        const response = await fetch('http://localhost:3000/lessons');
+        if (!response.ok) throw new Error('Failed to fetch lessons');
+        this.lessons = await response.json();
+        console.log('✓ Lessons loaded:', this.lessons.length);
+      } catch (error) {
+        console.error('✗ Error fetching lessons:', error);
+        alert('Failed to load lessons. Make sure backend is running.');
+      }
+    },
+      toggleCart() {
+    this.showCart = !this.showCart;
+    if (this.showCart) {
+      this.hasVisitedCart = true;
+    }
+    },
+    
     addToCart(lesson) {
       if (lesson.spaces <= 0) return;
       lesson.spaces -= 1;
@@ -302,6 +297,7 @@ new Vue({
       if (found) found.qty += 1;
       else this.cart.push({ id: lesson.id, subject: lesson.subject, price: lesson.price, qty: 1 });
     },
+    
     removeFromCart(lessonId) {
       const idx = this.cart.findIndex(i => i.id === lessonId);
       if (idx === -1) return;
@@ -309,7 +305,13 @@ new Vue({
       const lesson = this.lessons.find(l => l.id === lessonId);
       if (lesson) lesson.spaces += item.qty;
       this.cart.splice(idx, 1);
+
+      if (this.cart.length === 0) {
+      this.showCart = false;
+      this.hasVisitedCart = false;
+      }
     },
+    
     decrement(lessonId) {
       const item = this.cart.find(i => i.id === lessonId);
       if (!item) return;
@@ -320,56 +322,82 @@ new Vue({
         const i = this.cart.findIndex(x => x.id === lessonId);
         if (i > -1) this.cart.splice(i, 1);
       }
+      if (this.cart.length === 0) {
+        this.hasVisitedCart = false;
+        this.showCart = false;}
     },
-    // Get image for each subject
+    
+    // UPDATED: Get images from backend
     getSubjectIcon(subject) {
       const images = {
-        'Math': '/images/math.png',
-        'Physics': '/images/physics.png',
-        'Chemistry': '/images/chemistry.png',
-        'Biology': '/images/biology.png',
-        'English': '/images/english.png',
-        'History': '/images/history.png',
-        'Geography': '/images/geography.png',
-        'CS': '/images/cs.png',
-        'Art': '/images/art.png',
-        'Music': '/images/music.png'
+        'Math': 'math.png', 'Physics': 'physics.png', 'Chemistry': 'chemistry.png',
+        'Biology': 'biology.png', 'English': 'english.png', 'History': 'history.png',
+        'Geography': 'geography.png', 'CS': 'cs.png', 'Art': 'art.png', 'Music': 'music.png'
       };
-      return images[subject] || '/images/default.png';
+      return `http://localhost:3000/images/${images[subject] || 'default.png'}`;
     },
-    submitOrder() {
+    
+    // UPDATED: Submit order to backend
+    async submitOrder() {
       if (!this.canCheckout) return;
       this.formTouched = true;
       
-      const orderSummary = `Order submitted successfully!\n\n` +
-        `Customer Details:\n` +
-        `Name: ${this.firstName} ${this.lastName}\n` +
-        `Email: ${this.email}\n` +
-        `Phone: ${this.phone}\n` +
-        `City: ${this.city}\n` +
-        `Country: ${this.country}\n` +
-        `Address: ${this.address}\n` +
-        `Gift Order: ${this.isGift ? 'Yes' : 'No'}\n` +
-        `Lesson Type: ${this.lessonType === 'online' ? 'Online' : 'In Person'}\n\n` +
-        `Order Summary:\n` +
-        `Total Items: ${this.cartCount}\n` +
-        `Total Amount: £${this.cartTotal}\n\n` +
-        `Thank you for your order!`;
+      const order = {
+        firstName: this.firstName, lastName: this.lastName,
+        email: this.email, phone: this.phone,
+        city: this.city, country: this.country, address: this.address,
+        isGift: this.isGift, lessonType: this.lessonType,
+        cart: this.cart, total: this.cartTotal
+      };
       
-      alert(orderSummary);
-      
-      // Reset form
-      this.firstName = '';
-      this.lastName = '';
-      this.email = '';
-      this.phone = '';
-      this.city = '';
-      this.country = '';
-      this.address = '';
-      this.isGift = false;
-      this.lessonType = 'in-person';
-      this.formTouched = false;
-      this.cart.splice(0);
+      try {
+        const response = await fetch('http://localhost:3000/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(order)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          await this.updateLessonSpaces();
+          alert(`Order submitted successfully!\n\nOrder ID: ${data.orderId}\nTotal: £${this.cartTotal}`);
+          
+          // Reset
+          this.firstName = this.lastName = this.email = this.phone = this.city = this.country = this.address = '';
+          this.isGift = false;
+          this.lessonType = 'in-person';
+          this.formTouched = false;
+          this.cart = [];
+          this.showCart = false;
+          this.hasVisitedCart = false;
+          
+          await this.fetchLessons();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (error) {
+        console.error('✗ Error submitting order:', error);
+        alert('Failed to submit order. Make sure backend is running.');
+      }
+    },
+    
+    // NEW: Update lesson spaces in backend
+    async updateLessonSpaces() {
+      for (const item of this.cart) {
+        const lesson = this.lessons.find(l => l.id === item.id);
+        if (lesson) {
+          try {
+            await fetch(`http://localhost:3000/lessons/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ spaces: lesson.spaces })
+            });
+          } catch (error) {
+            console.error(`✗ Error updating lesson ${item.id}:`, error);
+          }
+        }
+      }
     }
   }
 });
